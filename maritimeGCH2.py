@@ -12,7 +12,7 @@ import numpy as np
 from pulp import LpProblem, LpMinimize, LpVariable, lpSum, LpStatus
 
 # Set the working directory
-working_directory = 'D:/MaritimeGCH/mymodel2_co2threshold'
+working_directory = 'D:/MaritimeGCH/mymodel4'
 os.chdir(working_directory)
 
 # Read input data from CSV files
@@ -23,6 +23,9 @@ def getParameters():
         "engine_types": ["ME-C", "ME-GI", "ME-LGI"],
         "init_capacity_fleet": (
             pd.read_csv("init_capacity_fleet.csv", index_col="ship_type")["capacity"].to_dict()
+        ),
+        "fleet_age": (
+            pd.read_csv("init_age.csv", index_col="ship_type")["avr_age"].to_dict()
         ),
         "demand_shipping": (
             pd.read_csv("demand_shipping.csv")
@@ -140,15 +143,23 @@ def createAndSolveModel(params):
         for s in params["ship_types"]:
             model += new_ship[y, s] <= params["prod_capacity"].get((y, s), 0)
 
+
+
     # Fleet Stock Update Constraint
     for y in params["years"]:
         for s in params["ship_types"]:
             if y == 2020:
                 model += stock_ship[y, s] == params["init_capacity_fleet"].get(s, 0)
             else:
-                model += stock_ship[y, s] <= new_ship[y, s] + stock_ship[y - 1, s] * (
-                    1 - 1 / params["lifetime"].get(s, 1)
+                # Calculate the number of ships that will be retired this year
+                retired_ships = lpSum(
+                    new_ship[max(2020, y - params["lifetime"].get(s, 1) + 1 - params["fleet_age"].get(s, 0)), s]
+                    for y_prev in range(max(2020, y - params["lifetime"].get(s, 1) + 1), y)
                 )
+                
+                model += stock_ship[y, s] == stock_ship[y-1, s] + new_ship[y, s] - retired_ships
+                
+                
 
     # Fuel Demand and Availability Constraints # Fuel consumption was divided by 10000 to get the units right, for this example.
     for y in params["years"]:
@@ -389,3 +400,131 @@ if __name__ == "__main__":
         import traceback
         traceback.print_exc()
         print("Excel file and plots may not have been created due to the error.")
+        
+        
+################  combined plots  
+
+import matplotlib.pyplot as plt
+
+def create_combined_figure(df, params):
+    years = df['Year']
+
+    fig, axes = plt.subplots(4, 2, figsize=(20, 20))  # Create a 4x2 grid of subplots
+
+    # Set general plot style
+    plt.rcParams['font.size'] = 14
+    plt.rcParams['font.weight'] = 'bold'
+    plt.rcParams['axes.labelweight'] = 'bold'
+    plt.rcParams['axes.titleweight'] = 'bold'
+
+    # Stock Ships
+    for s in params['ship_types']:
+        axes[0, 0].plot(years, df[f'Stock_Ships_{s}'], label=s)
+    axes[0, 0].set_title('Stock Ships [number]', fontweight='bold')
+    axes[0, 0].set_xlabel('Year', fontweight='bold')
+    axes[0, 0].set_ylabel('Number of Stock Ships', fontweight='bold')
+    axes[0, 0].legend()
+    axes[0, 0].grid(True, linestyle='--', alpha=0.7)
+
+    # New Ships
+    for s in params['ship_types']:
+        axes[0, 1].plot(years, df[f'New_Ships_{s}'], label=s)
+    axes[0, 1].set_title('New Ships [number]', fontweight='bold')
+    axes[0, 1].set_xlabel('Year', fontweight='bold')
+    axes[0, 1].set_ylabel('Number of New Ships', fontweight='bold')
+    axes[0, 1].legend()
+    axes[0, 1].grid(True, linestyle='--', alpha=0.7)
+
+    # Investment Costs
+    axes[1, 0].plot(years, df['Investment_Cost'], marker='o')
+    axes[1, 0].set_title('Investment Costs [million Euros]', fontweight='bold')
+    axes[1, 0].set_xlabel('Year', fontweight='bold')
+    axes[1, 0].set_ylabel('Costs [million Euros]', fontweight='bold')
+    axes[1, 0].grid(True, linestyle='--', alpha=0.7)
+
+    # Operational Costs
+    axes[1, 1].plot(years, df['Operational_Cost'], marker='o')
+    axes[1, 1].set_title('Operational Costs [million Euros]', fontweight='bold')
+    axes[1, 1].set_xlabel('Year', fontweight='bold')
+    axes[1, 1].set_ylabel('Costs [million Euros]', fontweight='bold')
+    axes[1, 1].grid(True, linestyle='--', alpha=0.7)
+
+    # Fuel Demand
+    for f in params['fuel_types']:
+        axes[2, 0].plot(years, df[f'Fuel_Demand_{f}'], label=f)
+    axes[2, 0].set_title('Fuel Demand [tonnes]', fontweight='bold')
+    axes[2, 0].set_xlabel('Year', fontweight='bold')
+    axes[2, 0].set_ylabel('Fuel Demand', fontweight='bold')
+    axes[2, 0].legend()
+    axes[2, 0].grid(True, linestyle='--', alpha=0.7)
+
+    # Fuel Costs
+    axes[2, 1].plot(years, df['Fuel_Cost'], marker='o')
+    axes[2, 1].set_title('Fuel Costs [million Euros]', fontweight='bold')
+    axes[2, 1].set_xlabel('Year', fontweight='bold')
+    axes[2, 1].set_ylabel('Costs [million Euros]', fontweight='bold')
+    axes[2, 1].grid(True, linestyle='--', alpha=0.7)
+
+    # CO2 Emissions and Cap
+    axes[3, 0].plot(years, df['CO2_Emissions'], label='Total CO2 Emissions', color='blue')
+    axes[3, 0].plot(years, [params['co2_cap'].get(y, 0) for y in years], label='CO2 Cap', color='red', linestyle='--')
+    axes[3, 0].fill_between(years, 
+                            [params['co2_cap'].get(y, 0) for y in years],
+                            df['CO2_Emissions'],
+                            where=(df['CO2_Emissions'] > [params['co2_cap'].get(y, 0) for y in years]),
+                            color='red', alpha=0.3, label='Excess Emissions')
+    axes[3, 0].set_title('CO2 Emissions and Cap [tonnes]', fontweight='bold')
+    axes[3, 0].set_xlabel('Year', fontweight='bold')
+    axes[3, 0].set_ylabel('CO2 Emissions', fontweight='bold')
+    axes[3, 0].legend()
+    axes[3, 0].grid(True, linestyle='--', alpha=0.7)
+
+    # ETS Penalty
+    axes[3, 1].plot(years, df['ets_penalty'], marker='o')
+    axes[3, 1].set_title('ETS Penalty [million Euros]', fontweight='bold')
+    axes[3, 1].set_xlabel('Year', fontweight='bold')
+    axes[3, 1].set_ylabel('Penalty Costs [million Euros]', fontweight='bold')
+    axes[3, 1].grid(True, linestyle='--', alpha=0.7)
+
+    # Adjust layout and save the figure
+    plt.tight_layout(pad=4.0)
+    plt.savefig('combined_figure.png')
+    plt.close()
+
+    print("Combined figure saved as 'combined_figure.png' in the working directory")
+
+if __name__ == "__main__":
+    try:
+        p = getParameters()
+        printInputParams(p)
+        m = createAndSolveModel(p)
+        m.writeLP("./maritimeLP.txt")
+        
+        # Debug: Print some sample variable names
+        print("Sample variable names:")
+        for v in list(m.variables())[:10]:  # Print first 10 variable names
+            print(v.name)
+        
+        # Extract results
+        results_df = extract_results(m, p)
+        
+        # Save results to Excel
+        save_results_to_excel(results_df)
+        
+        # Create plots
+        create_plots(results_df, p)
+        
+        # Create and save the combined figure
+        create_combined_figure(results_df, p)
+        
+        print("Script executed successfully. Excel file and plots have been created.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        print("Error details:")
+        import traceback
+        traceback.print_exc()
+        print("Excel file and plots may not have been created due to the error.")
+
+
+
+
