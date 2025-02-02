@@ -18,79 +18,270 @@ import pandas as pd
 import numpy as np
 from pulp import LpProblem, LpMinimize, LpVariable, lpSum, LpStatus
 import traceback
+import matplotlib.cm as cm
+
+scenario_files = {
+    # base scenario
+     'bau_fuel_h2': {
+         'init_capacity_fleet' : "init_capacity_fleet.csv", 
+         'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+         'fleet_age' : "init_age.csv", 
+         'demand_shipping': "demand_shippingSSP2.csv", 
+         'investment_cost' : "investment_cost.csv", 
+         'op_cost' : "op_cost_comb.csv",
+         'emissions_factor' : "emissions_factor_comb.csv",
+         'prod_capacity' : "prod_capacity.csv", 
+         'lifetime' : "lifetime.csv",
+         'cap' : "cap.csv",
+         'CII_desired' : "CII_desired.csv",
+         'fuel_cost': "fuel_cost_base1_28.csv",
+         'ets_price': "ets_price_mod.csv",
+         'co2_cap': "co2_cap_real.csv",
+         'fuel_avail': "fuel_avail_no.csv",
+         'fuel_consumption': "fuel_cons1_28.csv"
+
+     }, 
+     'bau_fuel_meoh': {
+         'init_capacity_fleet' : "init_capacity_fleet.csv", 
+         'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+         'fleet_age' : "init_age.csv", 
+         'demand_shipping': "demand_shippingSSP2.csv", 
+         'investment_cost' : "investment_cost.csv", 
+         'op_cost' : "op_cost_comb.csv",
+         'emissions_factor' : "emissions_factor_comb.csv",
+         'prod_capacity' : "prod_capacity.csv", 
+         'lifetime' : "lifetime.csv",
+         'cap' : "cap.csv",
+         'CII_desired' : "CII_desired.csv",
+         'fuel_cost': "fuel_cost_base1_28.csv",
+         'ets_price': "ets_price_mod.csv",
+         'co2_cap': "co2_cap_real.csv",
+         'fuel_avail': "fuel_avail_no.csv",
+         'fuel_consumption': "fuel_cons1_28_high.csv"
+
+     }, 
+# =============================================================================
+#      ,
+#      'bau_low': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP1.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost.csv",
+#          'emissions_factor' : "emissions_factor.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_real.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+# 
+#      },
+#      'bau_high': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP5.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost.csv",
+#          'emissions_factor' : "emissions_factor.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_real.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+# 
+#      },
+#      'co2_cap_accel': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP2.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost.csv",
+#          'emissions_factor' : "emissions_factor.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_opt.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'co2_cap_accel_fast_rf': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP2.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost.csv",
+#          'emissions_factor' : "emissions_factor.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_opt.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'tech_ccs': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP2.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_co2_capture.csv",
+#          'emissions_factor' : "emissions_factor_cc.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_real.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'tech_hull': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP2.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_hull.csv",
+#          'emissions_factor' : "emissions_factor_hull.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_real.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'tech_eng_opt': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP2.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_engin_opt.csv",
+#          'emissions_factor' : "emissions_factor_engin_opt.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_real.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'tech_port_call': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP1.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_port_call.csv",
+#          'emissions_factor' : "emissions_factor_port_call.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_med.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'tech_route_opt': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP1.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_route_opt.csv",
+#          'emissions_factor' : "emissions_factor_route_opt.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_med.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'tech_propul': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP1.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_propul.csv",
+#          'emissions_factor' : "emissions_factor_propul.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_med.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      },
+#      'green_premium': {
+#          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+#          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+#          'fleet_age' : "init_age.csv", 
+#          'demand_shipping': "demand_shippingSSP1.csv", 
+#          'investment_cost' : "investment_cost.csv", 
+#          'op_cost' : "op_cost_propul.csv",
+#          'emissions_factor' : "emissions_factor_propul.csv",
+#          'prod_capacity' : "prod_capacity.csv", 
+#          'lifetime' : "lifetime.csv",
+#          'cap' : "cap.csv",
+#          'CII_desired' : "CII_desired.csv",
+#          'fuel_cost': "fuel_cost_med.csv",
+#          'ets_price': "ets_price_mod.csv",
+#          'co2_cap': "co2_cap_med.csv",
+#          'fuel_avail': "fuel_avail_no.csv",
+#          'fuel_consumption': "fuel_consumption_test.csv"
+#      }
+# =============================================================================
+ }
 
 class MaritimeScenarioAnalysis:
     def __init__(self, working_directory):
         self.working_directory = working_directory
         os.chdir(working_directory)
         
-    def getParameters(self, scenario='base'):
+    def getParameters(self, scenario='base', scenario_files = scenario_files):
         
         # Scenario-specific parameters
-        scenario_files = {
-            'low': {
-                'init_capacity_fleet' : "init_capacity_fleet.csv", 
-                'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
-                'fleet_age' : "init_age.csv", 
-                'demand_shipping': "demand_shippingSSP1.csv", 
-                'investment_cost' : "investment_cost.csv", 
-                'op_cost' : "op_cost.csv",
-                'emissions_factor' : "emissions_factor.csv",
-                'prod_capacity' : "prod_capacity.csv", 
-                'lifetime' : "lifetime.csv",
-                'cap' : "cap.csv",
-                'CII_desired' : "CII_desired.csv",
-                'fuel_cost': "fuel_cost_low.csv",
-                'ets_price': "ets_price_no.csv",
-                'co2_cap': "co2_cap_opt.csv",
-                'fuel_avail': "fuel_avail_no.csv",
-                'fuel_consumption': "fuel_consumption_med.csv"
-
-            },
-            'base': {
-                'init_capacity_fleet' : "init_capacity_fleet.csv", 
-                'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
-                'fleet_age' : "init_age.csv", 
-                'demand_shipping': "demand_shippingSSP5.csv", 
-                'investment_cost' : "investment_cost.csv", 
-                'op_cost' : "op_cost.csv",
-                'emissions_factor' : "emissions_factor.csv",
-                'prod_capacity' : "prod_capacity.csv", 
-                'lifetime' : "lifetime.csv",
-                'cap' : "cap.csv",
-                'CII_desired' : "CII_desired.csv",
-                'fuel_cost': "fuel_cost_low.csv",
-                'ets_price': "ets_price_mod.csv",
-                'co2_cap': "co2_cap_opt.csv",
-                'fuel_avail': "fuel_avail_no.csv",
-                'fuel_consumption': "fuel_consumption_med.csv"
-            },
-            'high': {
-                'init_capacity_fleet' : "init_capacity_fleet.csv", 
-                'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
-                'fleet_age' : "init_age.csv", 
-                'demand_shipping': "demand_shippingSSP5.csv", 
-                'investment_cost' : "investment_cost.csv", 
-                'op_cost' : "op_cost.csv",
-                'emissions_factor' : "emissions_factor.csv",
-                'prod_capacity' : "prod_capacity.csv", 
-                'lifetime' : "lifetime.csv",
-                'cap' : "cap.csv",
-                'CII_desired' : "CII_desired.csv",
-                'fuel_cost': "fuel_cost_low.csv",
-                'ets_price': "ets_price_mod.csv",
-                'co2_cap': "co2_cap_opt.csv",
-                'fuel_avail': "fuel_avail_no.csv",
-                'fuel_consumption': "fuel_consumption_med.csv"
-            }
-        }
+        
+      
         
         # Load scenario-specific files
         files = scenario_files[scenario]
         params = {
             "years": range(2020, 2051),
             "ship_types": ["C", "T", "B", "G", "O"],
-            "engine_types": ["ME-C", "ME-GI", "ME-LGI"],
+   #         "engine_types": ["ME-C", "ME-GI", "ME-LGI"],
             "init_capacity_fleet": (
                 pd.read_csv(files['init_capacity_fleet'], index_col="ship_type")["capacity"].to_dict()
             ),
@@ -138,7 +329,7 @@ class MaritimeScenarioAnalysis:
             ),
             "fuel_consumption": (
                 pd.read_csv(files['fuel_consumption'])
-                .set_index(["ship_type", "fuel_type", "engine_type", "year"])["consumption"]
+                .set_index(["ship_type", "fuel_type", "year"])["consumption"]
                 .to_dict()
             )
         }
@@ -211,15 +402,15 @@ class MaritimeScenarioAnalysis:
                         for y_prev in range(max(2020, y - params["lifetime"].get(s, 1) + 1), y)
                     )
                     model += stock_ship[y, s] == stock_ship[y-1, s] + new_ship[y, s] - retired_ships
-
+## can get rid of engine type
         for y in params["years"]:
             for f in params["fuel_types"]:
                 fuel_demand_value = lpSum(
                     stock_ship[y, s]
-                    * params["fuel_consumption"].get((s, f, eng, y), 0)
+                    * params["fuel_consumption"].get((s, f, y), 0)
                     * 1e-2
                     for s in params["ship_types"]
-                    for eng in params["engine_types"]
+       #             for eng in params["engine_types"]
                 )
                 model += fuel_demand[y, f] == fuel_demand_value
                 model += fuel_demand[y, f] <= params["fuel_avail"].get((f, y), 0)
@@ -257,7 +448,8 @@ class MaritimeScenarioAnalysis:
             'Operational_Cost': [0 for _ in years],
             'Fuel_Cost': [0 for _ in years],
             'excess_emissions': [0 for _ in years],
-            'ets_penalty': [0 for _ in years],
+            'ets_penalty': [0 for _ in years], 
+            'Total_Cost_Per_Year': [0 for _ in years]
         }
         
         for s in params['ship_types']:
@@ -296,10 +488,13 @@ class MaritimeScenarioAnalysis:
 
         for i, year in enumerate(years):
             results['ets_penalty'][i] = results['excess_emissions'][i] * params['ets_price'].get(year, 0)
+            
+        for i, year in enumerate(years):
+            results['Total_Cost_Per_Year'][i] = results['ets_penalty'][i] + results['Investment_Cost'][i] + results['Fuel_Cost'][i] + results['Operational_Cost'][i]
 
         return pd.DataFrame(results)
 
-def detect_scenario_differences(scenario_results):
+def detect_scenario_differences(scenario_results, base_scen):
     """
     Detect which variables differ significantly between scenarios.
     """
@@ -312,19 +507,19 @@ def detect_scenario_differences(scenario_results):
         'excess_emissions': False
     }
     
-    base_data = scenario_results['base']
+    base_data = scenario_results[base_scen]
     scenarios = list(scenario_results.keys())
     
     threshold = 0.05  # 1% difference threshold
     
     for scenario in scenarios:
-        if scenario == 'base':
+        if scenario == base_scen:
             continue
             
         data = scenario_results[scenario]
         
         # Check cost differences
-        cost_metrics = ['Total_Cost', 'Investment_Cost', 'Operational_Cost', 'Fuel_Cost']
+        cost_metrics = ['Total_Cost', 'Total_Cost_Per_Year', 'Investment_Cost', 'Operational_Cost', 'Fuel_Cost']
         for metric in cost_metrics:
             rel_diff = abs(data[metric] - base_data[metric]).mean() / (base_data[metric].mean() + 1e-10)
             if rel_diff > threshold:
@@ -374,7 +569,7 @@ def create_plots(df, params, scenario):
 
 
     # Costs Plots
-    cost_components = ['Investment_Cost', 'Operational_Cost', 'Fuel_Cost', 'ets_penalty']
+    cost_components = ['Investment_Cost', 'Operational_Cost', 'Fuel_Cost', 'ets_penalty', 'Total_Cost_Per_Year']
     cost_components.append('Total_Cost')
 
     for component in cost_components:
@@ -385,7 +580,7 @@ def create_plots(df, params, scenario):
        plt.ylabel('Costs [million Euros]', fontweight='bold')
        plt.grid(True, linestyle='--', alpha=0.7)
        plt.tight_layout()
-       plt.savefig(f'{component.lower().replace(" ", "_")}_over_years.png')
+       plt.savefig(f'{component.lower().replace(" ", "_")}_over_years_{scenario}.png')
        plt.close()
 
 
@@ -473,20 +668,20 @@ def create_plots(df, params, scenario):
 
     print("Plots saved as PNG files in the working directory")
     
-def create_scenario_comparison_plots(scenario_results, scenario_differences):
+def create_scenario_comparison_plots(scenario_results, scenario_differences, base_scen):
     """
     Create comparison plots for different scenarios based on detected differences.
     """
-    years = scenario_results['base']['Year']
+    years = scenario_results[base_scen]['Year']
     scenarios = list(scenario_results.keys())
     
     # Map detected differences to specific plot requirements
     plot_mapping = {
-        'costs': ['Total_Cost', 'Investment_Cost', 'Operational_Cost', 'Fuel_Cost'],
+        'costs': ['Total_Cost', 'Total_Cost_Per_Year', 'Investment_Cost', 'Operational_Cost', 'Fuel_Cost'],
         'emissions': ['CO2_Emissions'],
         'ets_penalty': ['ets_penalty'],
-        'fleet': [col for col in scenario_results['base'].columns if 'Stock_Ships_' in col],
-        'fuel_mix': [col for col in scenario_results['base'].columns if 'Fuel_Demand_' in col]
+        'fleet': [col for col in scenario_results[base_scen].columns if 'Stock_Ships_' in col],
+        'fuel_mix': [col for col in scenario_results[base_scen].columns if 'Fuel_Demand_' in col]
     }
     
     # Filter parameters to plot based on detected differences
@@ -540,6 +735,135 @@ def create_scenario_comparison_plots(scenario_results, scenario_differences):
     plt.savefig('scenario_comparison_dynamic.png', dpi=300, bbox_inches='tight')
     print("Figure created")
     plt.close()
+    
+def create_scenario_comparison_plots_new(scenario_results, scenario_differences, scenarios, base_scen):
+    """
+    Create comparison plots for different scenarios based on detected differences.
+    """
+    years = scenario_results[base_scen]['Year']
+    scenarios = list(scenario_results.keys())
+    
+    # Map detected differences to specific plot requirements
+    plot_mapping = {
+        'costs': ['Total_Cost', 'Total_Cost_Per_Year',  'Investment_Cost', 'Operational_Cost', 'Fuel_Cost'],
+        'emissions': ['CO2_Emissions'],
+        'ets_penalty': ['ets_penalty'],
+        'fleet': [col for col in scenario_results[base_scen].columns if 'Stock_Ships_' in col],
+        'fuel_mix': [col for col in scenario_results[base_scen].columns if 'Fuel_Demand_' in col]
+    }
+    
+    # Filter parameters to plot based on detected differences
+    parameters_to_plot = [
+        param
+        for category, params in plot_mapping.items()
+        if scenario_differences[category]
+        for param in params
+    ]
+    
+    print(f"Parameters to plot: {parameters_to_plot}")
+    
+    # Set plot style
+    plt.style.use('seaborn-darkgrid') 
+    n_scenarios = len(scenarios)
+    cmap = cm.get_cmap('viridis')
+    
+    if n_scenarios > 1:
+        colors = {scenario: cmap(i/(n_scenarios-1)) for i, scenario in enumerate(scenarios)}
+    else:
+        colors = {scenarios[0]: cmap(0)}
+    
+    # Create main subplots for other parameters
+    num_plots = len(parameters_to_plot)
+    num_cols = 2
+    num_rows = (num_plots + 1) // 2
+    fig, axes = plt.subplots(num_rows, num_cols, figsize=(20, 6 * num_rows), squeeze=False)
+    
+    plot_idx = 0
+    
+    # Loop through selected parameters and create plots
+    for param in parameters_to_plot:
+        row = plot_idx // num_cols
+        col = plot_idx % num_cols
+        
+        if 'Fuel_Demand_' not in param:
+            for scenario in scenarios:
+                axes[row, col].plot(
+                    years, scenario_results[scenario][param],
+                    label=f'{scenario.capitalize()} Scenario',
+                    color=colors.get(scenario, 'black'), 
+                    linewidth=3
+                )
+                axes[row, col].set_title(f'{param.replace("_", " ").capitalize()} Sensitivity', fontsize=14, fontweight='bold')
+                axes[row, col].set_xlabel('Year', fontsize=14)
+                axes[row, col].set_ylabel('Units', fontsize=14)
+                axes[row, col].legend()
+                axes[row, col].grid(True)
+        
+        plot_idx += 1
+    
+    # Remove any unused subplots in the first figure
+    for idx in range(plot_idx, num_rows * num_cols):
+        row = idx // num_cols
+        col = idx % num_cols
+        fig.delaxes(axes[row, col])
+    
+    # Save main parameters figure
+    plt.tight_layout()
+    plt.savefig('scenario_comparison_dynamic.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    # Create fuel mix comparison if fuel demand columns exist
+    fuel_columns = [col for col in scenario_results[base_scen].columns if 'Fuel_Demand_' in col]
+    if fuel_columns:
+        # Identify fuel columns and years
+        fuel_labels = [col.replace('Fuel_Demand_', '') for col in fuel_columns]
+        years = scenario_results[base_scen]['Year'].unique()
+
+        # Prepare data for plotting
+        fuel_mix_data = {}
+        for scenario in scenarios:
+            fuel_mix_data[scenario] = {}
+            for year in years:
+                year_data = []
+                for col in fuel_columns:
+                    fuel_demand = scenario_results[scenario].loc[scenario_results[scenario]['Year'] == year, col].values[0]
+                    year_data.append(fuel_demand)
+                fuel_mix_data[scenario][year] = year_data
+
+        # Create figure with subplots for each scenario
+        fig, axes = plt.subplots(1, len(scenarios), figsize=(20, 6), sharey=True)
+        
+        # Color palette
+        colors = plt.cm.get_cmap('Set3')(np.linspace(0, 1, len(fuel_labels)))
+        
+        # Plot for each scenario
+        for idx, scenario in enumerate(scenarios):
+            ax = axes[idx] if len(scenarios) > 1 else axes
+            
+            # Prepare data for stacked area plot
+            scenario_data = np.array([fuel_mix_data[scenario][year] for year in years])
+            
+            # Create stacked area plot
+            ax.stackplot(years, scenario_data.T, labels=fuel_labels, colors=colors, alpha=0.7)
+            
+            ax.set_title(f'{scenario.capitalize()} Scenario', fontsize=14, fontweight='bold')
+            ax.set_xlabel('Year', fontsize=12)
+            
+            if idx == 0:
+                ax.set_ylabel('Fuel Demand', fontsize=12)
+            
+            ax.grid(True, linestyle='--', alpha=0.7)
+
+        # Add a single legend for all subplots
+        handles, labels = (axes[0].get_legend_handles_labels() if len(scenarios) > 1 
+                           else axes.get_legend_handles_labels())
+        fig.legend(handles, labels, loc='center left', bbox_to_anchor=(1.05, 0.5))
+
+        plt.tight_layout()
+        plt.savefig('fuel_mix_comparison.png', dpi=300, bbox_inches='tight')
+        plt.close()
+
+    print("Figures created")
     
 def create_combined_figure(df, params, scenario):
     years = df['Year']
@@ -639,12 +963,12 @@ def main():
     analysis = MaritimeScenarioAnalysis('C:\\Users\Chris Deranian\OneDrive\Documents\Fulbright\MaritimeGCH')
     
     # Run scenarios
-    scenarios = ['low', 'base', 'high']
+    scenarios = list(scenario_files.keys())
     scenario_results = {}
     
     for scenario in scenarios:
         print(f"\nRunning {scenario} scenario...")
-        params = analysis.getParameters(scenario)
+        params = analysis.getParameters(scenario, scenario_files)
         model = analysis.createAndSolveModel(params)
         results_df = analysis.extract_results(model, params)
         scenario_results[scenario] = results_df
@@ -654,9 +978,11 @@ def main():
         # Save individual scenario results
         results_df.to_excel(f'maritime_results_{scenario}.xlsx', index=False)
     
+    
+    if len(scenarios) > 1:
     # Create comparison plots
-    scenario_differences = detect_scenario_differences(scenario_results)
-    create_scenario_comparison_plots(scenario_results, scenario_differences)
+        scenario_differences = detect_scenario_differences(scenario_results, base_scen = scenarios[0])
+        create_scenario_comparison_plots_new(scenario_results, scenario_differences, scenarios, base_scen = scenarios[0])
 
         
         # Create and save the combined figure
