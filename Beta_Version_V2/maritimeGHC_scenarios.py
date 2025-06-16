@@ -315,6 +315,25 @@ scenario_files = {
           'fuel_consumption': "fuel_cons_base.csv"
 
       }, 
+      'co2_cap_no': {
+          'init_capacity_fleet' : "init_capacity_fleet.csv", 
+          'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
+          'fleet_age' : "init_age.csv", 
+          'demand_shipping': "demand_shippingSSP2.csv", 
+          'investment_cost' : "investment_cost.csv", 
+          'op_cost' : "op_cost.csv",
+          'emissions_factor' : "emissions_factor.csv",
+          'prod_capacity' : "prod_capacity.csv", 
+          'lifetime' : "lifetime.csv",
+          'cap' : "cap.csv",
+          'CII_desired' : "CII_desired.csv",
+          'fuel_cost': "fuel_cost_base.csv",
+          'ets_price': "ets_price_mod.csv",
+          'co2_cap': "co2_cap_no.csv",
+          'fuel_avail': "fuel_avail_no.csv",
+          'fuel_consumption': "fuel_cons_base.csv"
+
+      },
       'ets_price_no': {
           'init_capacity_fleet' : "init_capacity_fleet.csv", 
           'minim_capacity_fleet' : "minim_capacity_fleet.csv", 
@@ -441,9 +460,10 @@ class MaritimeScenarioAnalysis:
                 pd.read_csv(files['lifetime'], index_col="ship_type")["years"].to_dict()
             ),
             "cap": pd.read_csv(files['cap'], index_col="ship_type")["capacity"].to_dict(),
-            "CII_desired": (
-                pd.read_csv(files['CII_desired'], index_col="ship_type")["CII"].to_dict()
-            ),
+            "CII_desired":
+                pd.read_csv(files['CII_desired'])
+                .set_index(["ship_type", "year"])["CII"]
+                .to_dict(),
             "fuel_cost": pd.read_csv(files['fuel_cost'])
             .set_index(["fuel_type", "year"])["cost"]
             .to_dict(),
@@ -553,7 +573,7 @@ class MaritimeScenarioAnalysis:
 
         for y in params["years"]:
             for s in params["ship_types"]:
-                model += co2_emissions[y] <= params["cap"].get(s, 1) * params["CII_desired"].get(s, 1)
+                model += co2_emissions[y] <= params["cap"].get(s, 1) * params["CII_desired"].get(s, y)
 
         # Solve the model
         model.solve()
@@ -686,7 +706,7 @@ def detect_scenario_differences(scenario_results, base_scen):
     return differences
 
 def create_plots(df, params, scenario):
-    years = df['Year']
+    years = np.array(df['Year'])
 
     # Set general plot style
     plt.rcParams['font.weight'] = 'bold'
@@ -701,13 +721,13 @@ def create_plots(df, params, scenario):
 
     for component in cost_components:
        plt.figure(figsize=(12, 6))
-       plt.plot(years, df[component], marker='o')
+       plt.plot(years, np.array(df[component]), marker='o')
        plt.title(f'{component} over Years', fontweight='bold')
        plt.xlabel('Year', fontweight='bold')
        plt.ylabel('Costs [million Euros]', fontweight='bold')
        plt.grid(True, linestyle='--', alpha=0.7)
        plt.tight_layout()
-       plt.savefig(f'{component.lower().replace(" ", "_")}_over_years_{scenario}.png')
+       plt.savefig(f'{component.lower().replace(" ", "_")}_over_years_{scenario}.png', dpi = 350)
        plt.close()
 
 
@@ -716,10 +736,10 @@ def create_plots(df, params, scenario):
        plt.figure(figsize=(12, 6))
 
        # Plot total CO2 emissions
-       plt.plot(years, df['CO2_Emissions'], label='Total CO2 Emissions', color='blue')
+       plt.plot(years, np.array(df['CO2_Emissions']), label='Total CO2 Emissions', color='blue')
 
        # Plot CO2 cap
-       plt.plot(years, [params['co2_cap'].get(y, 0) for y in years], label='CO2 Cap', color='red', linestyle='--')
+       plt.plot(years, np.array([params['co2_cap'].get(y, 0) for y in years]), label='CO2 Cap', color='red', linestyle='--')
 
        # Fill the area representing excess emissions
        plt.fill_between(years, 
@@ -734,7 +754,7 @@ def create_plots(df, params, scenario):
        plt.legend()
        plt.grid(True, linestyle='--', alpha=0.7)
        plt.tight_layout()
-       plt.savefig(f"co2_emissions_over_years_{scenario}.png")
+       plt.savefig(f"co2_emissions_over_years_{scenario}.png", dpi = 350)
        plt.close()
 
     
@@ -745,8 +765,8 @@ def create_plots(df, params, scenario):
     plt.figure(figsize=(12, 6))
     bottom = np.zeros(len(years))
     for f in params['fuel_types']:
-        plt.bar(years, df[f'Fuel_Demand_{f}'], bottom=bottom, label=f)
-        bottom += df[f'Fuel_Demand_{f}']  # Update bottom to stack next fuel type on top
+        plt.bar(years, np.array(df[f'Fuel_Demand_{f}']), bottom=bottom, label=f)
+        bottom += np.array(df[f'Fuel_Demand_{f}'])  # Update bottom to stack next fuel type on top
 
     # Add title and labels
     plt.title('Fuel Demand [tonnes]', fontweight='bold')
@@ -755,7 +775,7 @@ def create_plots(df, params, scenario):
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
-    plt.savefig(f"fuel_demand_{scenario}.png")
+    plt.savefig(f"fuel_demand_{scenario}.png", dpi = 350)
     plt.close()
 
     
@@ -764,8 +784,8 @@ def create_plots(df, params, scenario):
     # Initialize the bottom position for stacking
     bottom = np.zeros(len(years))
     for s in params['ship_types']:
-        plt.bar(years, df[f'New_Ships_{s}'], bottom=bottom, label=s)
-        bottom += df[f'New_Ships_{s}']  
+        plt.bar(years, np.array(df[f'New_Ships_{s}']), bottom=bottom, label=s)
+        bottom += np.array(df[f'New_Ships_{s}'])  
     plt.title('New Ships [number]', fontweight='bold')
     plt.xlabel('Year', fontweight='bold')
     plt.ylabel('Number of New Ships', fontweight='bold')
@@ -773,7 +793,7 @@ def create_plots(df, params, scenario):
     plt.grid(True, linestyle='--', alpha=0.7)
     # Save and close
     plt.tight_layout()
-    plt.savefig(f"new_ships_{scenario}.png")
+    plt.savefig(f"new_ships_{scenario}.png", dpi = 350)
     plt.close()
 
     # Stock Ships
@@ -781,8 +801,8 @@ def create_plots(df, params, scenario):
     plt.figure(figsize=(12, 6))
     bottom = np.zeros(len(years))
     for s in params['ship_types']:
-        plt.bar(years, df[f'Stock_Ships_{s}'], bottom=bottom, label=s)
-        bottom += df[f'Stock_Ships_{s}']
+        plt.bar(years, np.array(df[f'Stock_Ships_{s}']), bottom=bottom, label=s)
+        bottom += np.array(df[f'Stock_Ships_{s}'])
     plt.title('Stock Ships [number]', fontweight='bold')
     plt.xlabel('Year', fontweight='bold')
     plt.ylabel('Number of Stock Ships', fontweight='bold')
@@ -790,7 +810,7 @@ def create_plots(df, params, scenario):
     plt.grid(True, linestyle='--', alpha=0.7)
     # Save and close
     plt.tight_layout()
-    plt.savefig(f"stock_ships_{scenario}.png")
+    plt.savefig(f"stock_ships_{scenario}.png", dpi = 350)
     plt.close()
 
     print("Plots saved as PNG files in the working directory")
@@ -859,7 +879,7 @@ def create_scenario_comparison_plots(scenario_results, scenario_differences, bas
             # fig.delaxes(axes[row, col])
     
     plt.tight_layout()
-    plt.savefig('scenario_comparison_dynamic.png', dpi=300, bbox_inches='tight')
+    plt.savefig('scenario_comparison_dynamic.png', dpi=350, bbox_inches='tight')
     print("Figure created")
     plt.close()
     
@@ -936,7 +956,7 @@ def create_scenario_comparison_plots_new(scenario_results, scenario_differences,
     
     # Save main parameters figure
     plt.tight_layout()
-    plt.savefig('scenario_comparison_dynamic.png', dpi=300, bbox_inches='tight')
+    plt.savefig('scenario_comparison_dynamic.png', dpi=350, bbox_inches='tight')
     plt.close()
 
     # Create fuel mix comparison if fuel demand columns exist
@@ -987,7 +1007,7 @@ def create_scenario_comparison_plots_new(scenario_results, scenario_differences,
         fig.legend(handles, labels, loc='center left', bbox_to_anchor=(1.05, 0.5))
 
         plt.tight_layout()
-        plt.savefig('fuel_mix_comparison.png', dpi=300, bbox_inches='tight')
+        plt.savefig('fuel_mix_comparison.png', dpi=350, bbox_inches='tight')
         plt.close()
 
     print("Figures created")
@@ -995,12 +1015,12 @@ def create_scenario_comparison_plots_new(scenario_results, scenario_differences,
 def create_combined_figure(df, params, scenario):
     
     df = df[df['Year'] >= 2025].reset_index(drop=True)
-    years = df['Year']
+    years = np.array(df['Year'])
     
-    fig, axes = plt.subplots(4, 2, figsize=(20, 20))  # Create a 4x2 grid of subplots
+    fig, axes = plt.subplots(4, 2, figsize=(20,20))  # Create a 4x2 grid of subplots
 
     # Set general plot style
-    plt.rcParams['font.size'] = 14
+    plt.rcParams['font.size'] = 16
     plt.rcParams['font.weight'] = 'bold'
     plt.rcParams['axes.labelweight'] = 'bold'
     plt.rcParams['axes.titleweight'] = 'bold'
@@ -1008,8 +1028,8 @@ def create_combined_figure(df, params, scenario):
     # Stock Ships
     bottom = np.zeros(len(years))
     for s in params['ship_types']:
-        axes[0, 0].bar(years, df[f'Stock_Ships_{s}'], bottom=bottom, label=s)
-        bottom += df[f'Stock_Ships_{s}']  
+        axes[0, 0].bar(years, np.array(df[f'Stock_Ships_{s}']), bottom=bottom, label=s)
+        bottom += np.array(df[f'Stock_Ships_{s}'] ) 
     axes[0, 0].set_title('Stock Ships [number]', fontweight='bold')
     axes[0, 0].set_xlabel('Year', fontweight='bold')
     axes[0, 0].set_ylabel('Number of Stock Ships', fontweight='bold')
@@ -1019,8 +1039,8 @@ def create_combined_figure(df, params, scenario):
     # New Ships
     bottom = np.zeros(len(years))
     for s in params['ship_types']:
-        axes[0, 1].bar(years, df[f'New_Ships_{s}'], bottom=bottom, label=s)
-        bottom += df[f'New_Ships_{s}']  
+        axes[0, 1].bar(years, np.array(df[f'New_Ships_{s}']), bottom=bottom, label=s)
+        bottom += np.array(df[f'New_Ships_{s}'])  
     axes[0, 1].set_title('New Ships [number]', fontweight='bold')
     axes[0, 1].set_xlabel('Year', fontweight='bold')
     axes[0, 1].set_ylabel('Number of New Ships', fontweight='bold')
@@ -1028,14 +1048,14 @@ def create_combined_figure(df, params, scenario):
     axes[0, 1].grid(True, linestyle='--', alpha=0.7)
 
     # Investment Costs
-    axes[1, 0].plot(years, df['Investment_Cost'], marker='o')
+    axes[1, 0].plot(years, np.array(df['Investment_Cost']), marker='o')
     axes[1, 0].set_title('Investment Costs [million Euros]', fontweight='bold')
     axes[1, 0].set_xlabel('Year', fontweight='bold')
     axes[1, 0].set_ylabel('Costs [million Euros]', fontweight='bold')
     axes[1, 0].grid(True, linestyle='--', alpha=0.7)
 
     # Operational Costs
-    axes[1, 1].plot(years, df['Operational_Cost'], marker='o')
+    axes[1, 1].plot(years, np.array(df['Operational_Cost']), marker='o')
     axes[1, 1].set_title('Operational Costs [million Euros]', fontweight='bold')
     axes[1, 1].set_xlabel('Year', fontweight='bold')
     axes[1, 1].set_ylabel('Costs [million Euros]', fontweight='bold')
@@ -1056,8 +1076,8 @@ def create_combined_figure(df, params, scenario):
     
     bottom = np.zeros(len(years))
     for f in params['fuel_types']:
-        axes[2, 0].bar(years, df[f'Fuel_Demand_{f}'], bottom=bottom, label=f, color=fuel_colors.get(f, None))
-        bottom += df[f'Fuel_Demand_{f}']
+        axes[2, 0].bar(years, np.array(df[f'Fuel_Demand_{f}']), bottom=bottom, label=f, color=fuel_colors.get(f, None))
+        bottom += np.array(df[f'Fuel_Demand_{f}'])
     axes[2, 0].set_title('Fuel Demand [tonnes]', fontweight='bold')
     axes[2, 0].set_xlabel('Year', fontweight='bold')
     axes[2, 0].set_ylabel('Fuel Demand', fontweight='bold')
@@ -1065,17 +1085,17 @@ def create_combined_figure(df, params, scenario):
     axes[2, 0].grid(True, linestyle='--', alpha=0.7)
 
     # Fuel Costs
-    axes[2, 1].plot(years, df['Fuel_Cost'], marker='o')
+    axes[2, 1].plot(years, np.array(df['Fuel_Cost']), marker='o')
     axes[2, 1].set_title('Fuel Costs [million Euros]', fontweight='bold')
     axes[2, 1].set_xlabel('Year', fontweight='bold')
     axes[2, 1].set_ylabel('Costs [million Euros]', fontweight='bold')
     axes[2, 1].grid(True, linestyle='--', alpha=0.7)
 
     # CO2 Emissions and Cap
-    axes[3, 0].plot(years, df['CO2_Emissions'], label='Total CO2 Emissions', color='blue')
-    axes[3, 0].plot(years, [params['co2_cap'].get(y, 0) for y in years], label='CO2 Cap', color='red', linestyle='--')
+    axes[3, 0].plot(years, np.array(df['CO2_Emissions']), label='Total CO2 Emissions', color='blue')
+    axes[3, 0].plot(years, np.array([params['co2_cap'].get(y, 0) for y in years]), label='CO2 Cap', color='red', linestyle='--')
     axes[3, 0].fill_between(years, 
-                            [params['co2_cap'].get(y, 0) for y in years],
+                            np.array([params['co2_cap'].get(y, 0) for y in years]),
                             df['CO2_Emissions'],
                             where=(df['CO2_Emissions'] > [params['co2_cap'].get(y, 0) for y in years]),
                             color='red', alpha=0.3, label='Excess Emissions')
@@ -1086,7 +1106,7 @@ def create_combined_figure(df, params, scenario):
     axes[3, 0].grid(True, linestyle='--', alpha=0.7)
 
     # ETS Penalty
-    axes[3, 1].plot(years, df['ets_penalty'], marker='o')
+    axes[3, 1].plot(years, np.array(df['ets_penalty']), marker='o')
     axes[3, 1].set_title('ETS Penalty [million Euros]', fontweight='bold')
     axes[3, 1].set_xlabel('Year', fontweight='bold')
     axes[3, 1].set_ylabel('Penalty Costs [million Euros]', fontweight='bold')
@@ -1094,14 +1114,14 @@ def create_combined_figure(df, params, scenario):
 
     # Adjust layout and save the figure
     plt.tight_layout(pad=4.0)
-    plt.savefig(f"combined_figure_{scenario}.png", dpi = 300)
+    plt.savefig(f"combined_figure_{scenario}.png", dpi = 400)
     plt.close()
 
     print("Combined figure saved as 'combined_figure.png' in the working directory")    
         
 def main():
     # Initialize scenario analysis
-    analysis = MaritimeScenarioAnalysis('C:\Users\Chris Deranian\OneDrive\Documents\Fulbright\MaritimeGCH\Beta\\ Version V2\\')
+    analysis = MaritimeScenarioAnalysis(r'C:\Users\Chris Deranian\OneDrive\Documents\Fulbright\MaritimeGCH\Beta_Version_V2')
     
     # Run scenarios
     scenarios = list(scenario_files.keys())
