@@ -1,15 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Nov 15 13:06:45 2024
+Created: 2024-2025
 
-@author: Chris Deranian
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Nov  4 11:28:57 2024
-
-@author: Chris Deranian
+@author: Chris Deranian, Angelos Alamanos
 """
 
 import os
@@ -1121,7 +1114,7 @@ def create_combined_figure(df, params, scenario):
         
 def main():
     # Initialize scenario analysis
-    analysis = MaritimeScenarioAnalysis(r'C:\Users\Chris Deranian\OneDrive\Documents\Fulbright\MaritimeGCH\Beta_Version_V2')
+    analysis = MaritimeScenarioAnalysis(r'C:\Users\your_path...\MaritimeGCH\Beta_Version')
     
     # Run scenarios
     scenarios = list(scenario_files.keys())
